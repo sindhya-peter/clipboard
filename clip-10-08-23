@@ -1,0 +1,44 @@
+const AWS = require('aws-sdk');
+const fastcsv = require('fast-csv');
+const s3 = new AWS.S3();
+
+exports.handler = async (event) => {
+    const bucket = event.Records[0].s3.bucket.name;
+    const key1 = event.Records[0].s3.object.key;
+    const key2 = event.Records[1].s3.object.key;
+
+    const file1Stream = s3.getObject({ Bucket: bucket, Key: key1 }).createReadStream();
+    const file2Stream = s3.getObject({ Bucket: bucket, Key: key2 }).createReadStream();
+
+    const csv1Data = await parseCSV(file1Stream);
+    const csv2Data = await parseCSV(file2Stream);
+
+    const joinedData = joinCSVs(csv1Data, csv2Data, 'commonField');
+
+    // Do something with the joined data, like saving to a new CSV or performing further processing
+
+    return "CSV files joined and processed successfully!";
+};
+
+function parseCSV(stream) {
+    return new Promise((resolve, reject) => {
+        const data = [];
+        fastcsv.parseStream(stream, { headers: true })
+            .on('data', (row) => data.push(row))
+            .on('end', () => resolve(data))
+            .on('error', (error) => reject(error));
+    });
+}
+
+function joinCSVs(csv1Data, csv2Data, joinField) {
+    const joinedData = [];
+
+    csv1Data.forEach((row1) => {
+        const matchingRow = csv2Data.find((row2) => row2[joinField] === row1[joinField]);
+        if (matchingRow) {
+            joinedData.push({ ...row1, ...matchingRow });
+        }
+    });
+
+    return joinedData;
+}
