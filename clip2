@@ -1,0 +1,49 @@
+const AWS = require('aws-sdk');
+const csv = require('fast-csv');
+const s3 = new AWS.S3();
+
+exports.handler = async (event) => {
+    const bucketName = 'your-s3-bucket-name';
+    const firstFileKey = 'path/to/first.csv';
+    const secondFileKey = 'path/to/second.csv';
+
+    const firstFileData = await getFileData(bucketName, firstFileKey);
+    const secondFileData = await getFileData(bucketName, secondFileKey);
+
+    const filteredRows = filterCSVRows(firstFileData, secondFileData);
+
+    // Do something with the filteredRows, like saving to a new CSV or processing further.
+
+    return {
+        statusCode: 200,
+        body: JSON.stringify('Processing complete'),
+    };
+};
+
+async function getFileData(bucket, key) {
+    const params = {
+        Bucket: bucket,
+        Key: key,
+    };
+
+    const response = await s3.getObject(params).promise();
+    return response.Body;
+}
+
+function filterCSVRows(firstData, secondData) {
+    const filteredRows = [];
+
+    csv.parseString(secondData.toString(), { headers: true })
+        .on('data', row => {
+            const idToFilter = row['id']; // Change 'id' to the actual column name in your second CSV file
+            const matchingRow = csv.parseString(firstData.toString(), { headers: true })
+                .getRows()
+                .find(row => row['id'] === idToFilter); // Change 'id' to the actual column name in your first CSV file
+
+            if (matchingRow) {
+                filteredRows.push(matchingRow);
+            }
+        });
+
+    return filteredRows;
+}
