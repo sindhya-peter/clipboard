@@ -57,3 +57,31 @@ function uploadToS3(bucket, key, data) {
     const params = { Bucket: bucket, Key: key, Body: data };
     return s3.upload(params).promise();
 }
+
+const fs = require('fs');
+const csv = require('csv-parser');
+
+const firstFileData = [];
+const secondFileIds = new Set();
+
+fs.createReadStream('firstFile.csv')
+  .pipe(csv())
+  .on('data', (row) => {
+    firstFileData.push(row);
+  })
+  .on('end', () => {
+    // CSV parsing done
+    // Now process the second CSV file
+    fs.createReadStream('secondFile.csv')
+      .pipe(csv())
+      .on('data', (row) => {
+        secondFileIds.add(row.id); // Assuming 'id' is the column name
+      })
+      .on('end', () => {
+        // CSV parsing done
+        // Now you can proceed to filtering
+      });
+  });
+
+
+  const filteredData = firstFileData.filter((row) => secondFileIds.has(row.id));
