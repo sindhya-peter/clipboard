@@ -1,0 +1,223 @@
+// const AWS = require('aws-sdk');
+// const csvParser = require('csv-parser');
+// const stream = require('stream');
+
+// const s3 = new AWS.S3();
+const AWS = require('aws-sdk');
+const fs = require('fs');
+const csvParser = require('csv-parser');
+const csv = require('@fast-csv/parse');
+
+// // Configure AWS SDK
+// AWS.config.update({
+//   accessKeyId: 'YOUR_ACCESS_KEY',
+//   secretAccessKey: 'YOUR_SECRET_KEY',
+//   region: 'YOUR_REGION'
+// });
+
+const s3 = new AWS.S3();
+
+const bucketName = 'sindhya-glue-bucket-001';
+const file1Key = 'sampleFiles/file1.csv';
+const file2Key = 'sampleFiles/file2.csv';
+const filteredKey = 'sampleFiles/filtered.csv';
+
+
+const filterColumn = 'g'; // Replace with the column name you want to filter on
+
+// Download and parse the second CSV file
+const filteredValues = new Set();
+// exports.handler = async (event) => {
+//   console.log('hello world');
+
+//   const response = {
+//       statusCode: 200,
+//       body: JSON.stringify('Hello from Lambda!')
+//   };
+
+//   return response;
+// };
+
+// // s3.getObject({ Bucket: bucketName, Key: file2Key }, (err, data) => {
+// //   if (err) {
+// //     console.error('Error reading file2:', err);
+// //     return;
+// //   }
+
+// //   fs.createReadStream(data.Body)
+// //     .pipe(csvParser())
+// //     .on('data', row => {
+// //       filteredValues.add(row[filterColumn]);
+// //     })
+// //     .on('end', () => {
+// //       // Now, read and filter the first CSV file
+// //       s3.getObject({ Bucket: bucketName, Key: file1Key }, (err, data) => {
+// //         if (err) {
+// //           console.error('Error reading file1:', err);
+// //           return;
+// //         }
+
+// //         fs.createReadStream(data.Body)
+// //           .pipe(csvParser())
+// //           .on('data', row => {
+// //             if (filteredValues.has(row[filterColumn])) {
+// //               console.log('Filtered row:', row);
+// //               // Process the filtered row as needed
+// //             }
+// //           });
+// //       });
+// //     });
+// // });
+
+
+
+const records = [];
+const filterIds = [];
+exports.handler = async (event, context) => {
+  //  try {
+        // Get the Bucket and Key values for your CSV files from event or environment variables
+        
+        // Read the first CSV file
+      //  const firstFileData = await s3.getObject({ Bucket: 'sindhya-glue-bucket-001', Key: 'sampleFiles/file1.csv' }).promise();
+   
+    
+        
+        try {
+          await parseIds;
+         // await parserFcn;
+         // await uploadToS3;
+          
+
+        } catch (error) {
+          console.log("Get Error: ", error);
+        }
+
+
+
+    //     console.log("firstfiledata"+JSON.stringify(firstFileData));
+    //     const firstFileRecords = await parseCSV(firstFileData.Body.data);
+
+    //     // Read the second CSV file
+    //     const secondFileData = await s3.getObject({ Bucket: 'sindhya-glue-bucket-001', Key: 'sampleFiles/file2.csv' }).promise();
+    //     console.log("secondFileData"+JSON.stringify(secondFileData));
+    //     const secondFileRecords = await parseCSV(secondFileData.Body.data);
+
+    //     // Extract IDs from the second CSV file
+    //     const secondFileIDs = secondFileRecords.map(record => record.id);
+
+    //     // Filter records from the first CSV file based on IDs
+    //     const filteredRecords = firstFileRecords.filter(record => secondFileIDs.includes(record.g));
+
+    //     // Convert filtered records back to CSV format
+    //     const filteredCSV = await convertToCSV(filteredRecords);
+
+    //     // Upload the filtered CSV back to S3
+    //     await s3.putObject({ Bucket: 'sindhya-glue-bucket-001', Key: 'sampleFiles/filtered-file.csv', Body: filteredCSV }).promise();
+
+    //     return {
+    //         statusCode: 200,
+    //         body: 'Filtered file created and uploaded successfully.'
+    //     };
+    // } catch (error) {
+    //     return {
+    //         statusCode: 500,
+    //         body: `Error: ${error.message}`
+    //     };
+    // }
+};
+let parserFcn = new Promise((resolve, reject) => {
+  const params = {
+    Bucket: bucketName,
+    Key: file1Key,
+  };
+  const csvFile = s3.getObject(params).createReadStream();
+  const parser = csv
+    .parseStream(csvFile, { headers: true })
+    .on("data", function (data) {
+      console.log('Data parsed: ', data);
+    
+      if(filterIds.includes(data.g)){
+        records.push(data);
+      }
+      console.log("records = ", JSON.stringify(records));
+
+
+    })
+    .on("end", function () {
+      console.log('parserFcn Data parsed end ');
+      console.log("records = ", JSON.stringify(records));
+      uploadToS3;
+      resolve("csv parse process finished");
+
+    })
+    .on("error", function () {
+      reject("csv parse process failed");
+    });
+});
+let parseIds = new Promise((resolve, reject) => {
+  const params = {
+    Bucket: bucketName,
+    Key: file2Key,
+  };
+  const csvFile = s3.getObject(params).createReadStream();
+  const parser = csv
+    .parseStream(csvFile, { headers: true })
+    .on("data", function (data) {
+      console.log('parseIds Data parsed: ', data);
+      filterIds.push(data.g);
+      console.log('filterIds =: ',JSON.stringify(filterIds));
+
+    })
+    .on("end", function () {
+      console.log('parseIds Data parsed end ');
+      parserFcn;
+      resolve("csv parse1 process finished");
+    })
+    .on("error", function () {
+      console.log('Data parsed end ');
+      reject("parseIds csv parse1 process failed");
+
+    });
+});
+
+let uploadToS3 = new Promise((resolve, reject) => {
+// Convert JSON array to CSV
+const csvArray = records.map(obj => {
+  return Object.values(obj).join(',');
+});
+console.log('records =  ',JSON.stringify(records));
+console.log('csvArray =  ',JSON.stringify(csvArray));
+
+const csvData = csvArray.join('\n');
+  
+  const params = {
+    Bucket: bucketName,
+    Key: filteredKey,
+    Body: csvData
+  };
+  console.log('csvData =  ',JSON.stringify(csvData));
+
+  s3.upload(params, (err, data) => {
+    if (err) {
+      console.error('Error uploading to S3:', err);
+    } else {
+      console.log('File uploaded successfully:', data.Location);
+    }
+  });
+});
+ 
+
+// function convertToCSV(records) {
+//   console.log('convertToCSV csv');
+
+//     const outputStream = new stream.PassThrough();
+//     const csvStream = csvParser({ headers: true });
+
+//     csvStream.on('error', error => outputStream.emit('error', error));
+
+//     csvStream.pipe(outputStream);
+//     records.forEach(record => csvStream.write(record));
+//     csvStream.end();
+
+//     return outputStream.read();
+// }
