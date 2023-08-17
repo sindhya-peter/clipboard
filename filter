@@ -1,0 +1,138 @@
+const AWS = require('aws-sdk');
+const csvParser = require('csv-parser');
+const s3 = new AWS.S3();
+const csv = require('@fast-csv/parse');
+let converter = require('json-2-csv');
+
+exports.handler = async (event, context) => {
+    const bucketName = 'sindhya-glue-bucket-001';
+    const file2Key = 'sampleFiles/file2.csv';
+    const file1Key = 'sampleFiles/file1.csv';
+    const filteredKey = 'sampleFiles/filtered.csv';
+   
+    let checkS3files = new Promise((resolve, reject) => {
+
+        var params = {
+            Bucket: bucketName,
+            Delimiter: '/',
+            Prefix: 'sampleFiles/'
+          };
+          
+          s3.listObjects(params, function(err, data) {
+            if (err) {
+              reject( 'There was an error:  ' + err.message);
+            } else {
+              console.log(data.Contents,"<<<all content");
+                          
+              data.Contents.forEach(function(obj,index) {
+                console.log(obj.Key,"<<<file path")
+              })
+              resolve (data);
+            }
+          })
+        
+        }
+    );
+    let parseIds = new Promise((resolve, reject) => {
+        const filterIds = [];
+
+        const params = {
+          Bucket: bucketName,
+          Key: file2Key,
+        };
+        const csvFile = s3.getObject(params).createReadStream();
+        const parser = csv
+          .parseStream(csvFile, { headers: true })
+          .on("data", function (data) {
+            console.log('parseIds Data parsed: ', data);
+            filterIds.push(data['Account Name']);
+            console.log('filterIds =: ',JSON.stringify(filterIds));
+      
+          })
+          .on("end", function () {
+            console.log('parseIds Data parsed end ');
+            
+
+            resolve (filterIds);
+          })
+          .on("error", function () {
+            console.log('Data parsed end ');
+            reject("parseIds csv parse1 process failed");
+      
+          });
+        }
+    );
+    let parserFcn = (filterIds) => {
+        return new Promise((resolve, reject) => {
+            const records = [];
+          const params1 = {
+            Bucket: bucketName,
+            Key: file1Key,
+          };
+          const csvFile2 = s3.getObject(params1).createReadStream();
+          const parser2 = csv
+            .parseStream(csvFile2, { headers: true })
+            .on("data", function (data2) {
+              console.log('Data parsed: ', data2);
+      
+              if(filterIds.includes(data2['EMPLOYEE_ID'])){
+                records.push(data2);
+              }
+              console.log("records = ", JSON.stringify(records));
+            })
+            .on("end", function () {
+              console.log('parserFcn Data parsed end ');
+              console.log("records = ", JSON.stringify(records));
+              resolve(records);
+            })
+            .on("error", function () {
+              reject("csv parse process failed");
+            });
+        });
+      };
+      
+    
+    try {
+        let s3files = await checkS3files;
+        console.log('s3files count = '+s3files.Contents.length);
+
+       let ids = await parseIds;
+        let fiklteredList = await parserFcn(ids);
+        var csvData =  await converter.json2csv(fiklteredList);
+        console.log('csvData = '+csvData);
+        const uploadparams = {
+            Bucket: bucketName,
+            Key: filteredKey,
+            Body: csvData
+          };
+        
+          s3.upload(uploadparams, (err, data) => {
+            if (err) {
+              console.error('Error uploading to S3:', err);
+              //reject("uploading failed",err);
+            
+            } else {
+              console.log('File uploaded successfully:', data.Location);
+              
+              //resolve("File uploaded finished",data);
+            }
+          });
+        
+
+      } catch (error) {
+        console.log("Get Error: ", error);
+      }
+
+};
+
+
+/*
+
+    "aws-sdk": "^2.1436.0",
+    "csv-parser": "^3.0.0",
+    "fast-csv": "^4.3.6",
+    "fs": "^0.0.1-security",
+    "json-2-csv": "^4.1.0",
+    "stream": "^0.0.2"
+
+    */
