@@ -1,0 +1,151 @@
+
+const AWS = require('aws-sdk');
+const csvParser = require('csv-parser');
+const s3 = new AWS.S3();
+const csv = require('@fast-csv/parse');
+let converter = require('json-2-csv');
+
+exports.handler = async (event, context) => {
+    const bucketName = 'sindhya-glue-bucket-001';
+    const filteredKey = 'IDP/IDP.RPA.ACCOUNT_LETTER_FILTERED_';
+    const idpFileName = 'IDP.RPA.ACCOUNT_LETTER';
+    const salePointFileName = 'SP_EMP_ACCESS';
+    var idpKey = '';
+    var salePointKey = '';
+   
+    let checkS3files = new Promise((resolve, reject) => {
+        const fileKeys = {};
+
+        var params = {
+            Bucket: bucketName,
+            Delimiter: '/',
+            Prefix: 'IDP/'
+          };
+          
+          s3.listObjects(params, function(err, data) {
+            if (err) {
+              reject( 'There was an error:  ' + err.message);
+            } else {
+              console.log(data.Contents,"<<<all content");
+              fileKeys.data = data;        
+              data.Contents.forEach(function(obj,index) {
+                console.log(obj.Key,"<<<file path")
+                if ((obj.Key.toString()).includes(idpFileName)) {
+                    fileKeys.idp = obj.Key
+                } 
+                if ((obj.Key.toString()).includes(salePointFileName)) {
+                    fileKeys.salepoint = obj.Key 
+                } 
+                console.log(idpKey,"<<<idpKey path>>>"+salePointKey)
+
+              })
+              resolve (fileKeys);
+            }
+          })
+        
+        }
+    );
+    let parseIds = (fileKey) => {
+        return new Promise((resolve, reject) => {
+        const filterIds = [];
+    
+        const params = {
+          Bucket: bucketName,
+          Key: fileKey,
+        };
+        const csvFile = s3.getObject(params).createReadStream();
+        const parser = csv
+          .parseStream(csvFile, { headers: true })
+          .on("data", function (data) {
+            filterIds.push(data['Account Name']);
+          })
+          .on("end", function () {
+            console.log('parseIds Data parsed end ');
+            console.log('filterIds =: ',JSON.stringify(filterIds));
+
+            resolve (filterIds);
+          })
+          .on("error", function () {
+            console.log('Data parsed end ');
+            reject("parseIds csv parse1 process failed");
+      
+          });
+        }
+        )};
+    
+    let parserFcn = (fileKey,filterIds) => {
+        return new Promise((resolve, reject) => {
+            const records = [];
+            
+          const params1 = {
+            Bucket: bucketName,
+            Key: fileKey,
+          };
+          const csvFile2 = s3.getObject(params1).createReadStream();
+          const parser2 = csv
+            .parseStream(csvFile2, { headers: true })
+            .on("data", function (data2) {
+              console.log('Data parsed: ', data2);
+      
+              if(filterIds.includes(data2['EMPLOYEE_ID'])){
+                records.push(data2);
+              }
+            })
+            .on("end", function () {
+              console.log('parserFcn Data parsed end ');
+              console.log("records = ", JSON.stringify(records));
+              resolve(records);
+            })
+            .on("error", function () {
+              reject("csv parse process failed");
+            });
+        });
+      };
+
+      let uploadToS3 = (csvData) => {
+        return new Promise((resolve, reject) => {
+
+        const currentDate = new Date();
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const year = currentDate.getFullYear();
+        const formattedDate = day + month + year; 
+        const writeKey =  filteredKey+formattedDate+'.csv' 
+        console.log('writeKey = '+writeKey);
+
+        const uploadparams = {
+            Bucket: bucketName,
+            Key: writeKey,
+            Body: csvData
+          };
+          console.log('uploadparams = '+JSON.stringify(uploadparams));
+
+          s3.upload(uploadparams, (err, data) => {
+            if (err) {
+              console.error('Error uploading to S3:', err);
+              reject(err);
+            
+            } else {
+              console.log('File uploaded successfully:', data.Location);
+              resolve(data);
+            }
+          });
+        });
+      };
+      
+    
+    try {
+        let s3files = await checkS3files;
+        console.log('s3files count = '+s3files.data.Contents.length);
+
+        let ids = await parseIds(s3files.salepoint);
+        let fiklteredList = await parserFcn(s3files.idp,ids);
+        var csvData =  await converter.json2csv(fiklteredList);
+        console.log('csvData = '+csvData);
+        await uploadToS3(csvData);  
+
+      } catch (error) {
+        console.log("Get Error: ", error);
+      }
+
+};
