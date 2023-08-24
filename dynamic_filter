@@ -149,3 +149,32 @@ exports.handler = async (event, context) => {
       }
 
 };
+
+
+/*
+exports.handler =  async function(event, context) {
+  const promises = event.Records.map((record) => {
+    const Bucket = record.s3.bucket.name;
+    const Key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
+    const params = { Bucket, Key };
+    const stream = s3.getObject(params).createReadStream();
+
+    return new Promise(function(resolve, reject) {
+      csv.parseStream(stream, {
+        headers: true
+      }).on('data', (data) => {
+        console.log(data);
+      }).on('error', (error) => {
+        console.error(error);
+        reject(error);
+      }).on('end', (rows) => {
+        console.log(`Parsed ${rows} rows`);
+        resolve(rows);
+      });
+    });
+  });
+
+  return Promise.all(promises);
+}
+
+*/
