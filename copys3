@@ -1,0 +1,43 @@
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3();
+
+exports.handler = async (event, context) => {
+    try {
+        const sourceBucket = 'your-source-bucket-name'; // Replace with your source bucket name
+        const destinationBucket = 'your-destination-bucket-name'; // Replace with your destination bucket name
+        const folderKey = 'path/to/your/folder/'; // Replace with your folder path
+        
+        const objects = await listObjects(sourceBucket, folderKey);
+        
+        for (const obj of objects) {
+            const copyParams = {
+                Bucket: destinationBucket,
+                CopySource: `${sourceBucket}/${obj.Key}`,
+                Key: obj.Key
+            };
+            
+            await s3.copyObject(copyParams).promise();
+        }
+        
+        return {
+            statusCode: 200,
+            body: JSON.stringify('Folder copied successfully'),
+        };
+    } catch (err) {
+        console.error('Error:', err);
+        return {
+            statusCode: 500,
+            body: JSON.stringify('An error occurred'),
+        };
+    }
+};
+
+async function listObjects(bucket, prefix) {
+    const listParams = {
+        Bucket: bucket,
+        Prefix: prefix
+    };
+    
+    const response = await s3.listObjectsV2(listParams).promise();
+    return response.Contents;
+}
