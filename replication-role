@@ -1,0 +1,36 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetReplicationConfiguration",
+        "s3:GetObjectVersionForReplication",
+        "s3:GetObjectVersionAcl"
+      ],
+      "Resource": [
+        "arn:aws:s3:::source-bucket-name",
+        "arn:aws:s3:::source-bucket-name/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": "arn:aws:s3:::source-bucket-name"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ReplicateObject",
+        "s3:ReplicateDelete",
+        "s3:ReplicateTags",
+        "s3:ReplicateMetadata",
+        "s3:ReplicateACL"
+      ],
+      "Resource": "arn:aws:s3:::destination-bucket-name/*"
+    }
+  ]
+}
