@@ -1,0 +1,22 @@
+const s3 = new AWS.S3();
+
+const params = {
+  Bucket: 'YOUR_BUCKET_NAME',
+  Key: 'path/to/your/file.txt',
+};
+
+s3.getObject(params, (err, data) => {
+  if (err) {
+    console.error('Error reading file from S3:', err);
+  } else {
+    const fileContent = data.Body.toString('utf-8');
+    // Now you have the file content in 'fileContent'
+  }
+});
+const isPGPEncrypted = fileContent.includes('-----BEGIN PGP MESSAGE-----');
+
+if (isPGPEncrypted) {
+  console.log('The file is PGP encrypted.');
+} else {
+  console.log('The file is not PGP encrypted.');
+}
