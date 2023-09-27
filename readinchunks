@@ -1,0 +1,33 @@
+const fs = require('fs');
+const openpgp = require('openpgp');
+
+async function encryptFileChunked(inputFilePath, publicKeyFilePath, outputFilePath) {
+  const publicKeyArmored = fs.readFileSync(publicKeyFilePath, 'utf8');
+  const publicKey = (await openpgp.key.readArmored(publicKeyArmored)).keys[0];
+
+  const inputStream = fs.createReadStream(inputFilePath);
+  const outputStream = fs.createWriteStream(outputFilePath);
+
+  const chunkSize = 1024 * 1024; // 1MB chunks (you can adjust this size)
+
+  inputStream.on('data', async (chunk) => {
+    const encryptedChunk = await openpgp.encrypt({
+      message: openpgp.message.fromText(chunk.toString()),
+      publicKeys: [publicKey],
+    });
+
+    outputStream.write(encryptedChunk.data);
+  });
+
+  inputStream.on('end', () => {
+    outputStream.end();
+    console.log('Encryption complete');
+  });
+}
+
+// Usage
+const inputFile = 'largefile.txt';
+const publicKeyFile = 'publickey.asc';
+const outputFile = 'encrypted_largefile.pgp';
+
+encryptFileChunked(inputFile, publicKeyFile, outputFile);
