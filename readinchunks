@@ -102,3 +102,37 @@ async function downloadAndEncrypt() {
 }
 
 downloadAndEncrypt();
+
+
+
+
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3();
+
+const params = {
+  Bucket: 'your-s3-bucket-name',
+  Key: 'your-object-key',
+};
+
+const readStream = s3.getObject(params).createReadStream();
+
+// Define a chunk size (e.g., 64KB)
+const chunkSize = 64 * 1024;
+
+// Create a buffer to store the read data
+const buffer = Buffer.alloc(chunkSize);
+
+// Read and process data in chunks
+readStream.on('data', (chunk) => {
+  // Process the chunk here
+  console.log('Received a chunk:', chunk.toString());
+});
+
+readStream.on('end', () => {
+  // All chunks have been read
+  console.log('Finished reading data from S3');
+});
+
+readStream.on('error', (error) => {
+  console.error('Error reading data from S3:', error);
+});
