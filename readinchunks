@@ -31,3 +31,74 @@ const publicKeyFile = 'publickey.asc';
 const outputFile = 'encrypted_largefile.pgp';
 
 encryptFileChunked(inputFile, publicKeyFile, outputFile);
+
+
+
+
+
+const AWS = require('aws-sdk');
+const fs = require('fs');
+const { encrypt, decrypt, generateKeyPair } = require('openpgp');
+
+// Configure AWS SDK with your credentials
+AWS.config.update({
+  accessKeyId: 'YOUR_ACCESS_KEY_ID',
+  secretAccessKey: 'YOUR_SECRET_ACCESS_KEY',
+});
+
+const s3 = new AWS.S3();
+const s3Bucket = 'your-s3-bucket-name';
+const s3Key = 'path/to/your/large-file.txt'; // Replace with the S3 object key of your large file
+const chunkSize = 1024 * 1024; // 1MB chunks, you can adjust this size as needed
+const outputFile = 'encrypted-output.pgp';
+
+async function downloadAndEncrypt() {
+  try {
+    const params = { Bucket: s3Bucket, Key: s3Key };
+    const { ContentLength } = await s3.headObject(params);
+
+    const { privateKeyArmored, publicKeyArmored } = await generateKeyPair({
+      type: 'ecc', // Use appropriate key type
+      curve: 'curve25519',
+      userIDs: [{ name: 'Your Name', email: 'your@email.com' }],
+    });
+
+    const privateKey = await decrypt({
+      message: await encrypt({
+        message: await fs.promises.readFile(outputFile),
+        publicKeys: (await openpgp.readKey({ armoredKey: publicKeyArmored })).keys,
+        armor: true,
+      }),
+      passwords: ['your-passphrase'], // Replace with your passphrase
+      privateKeys: (await openpgp.readKey({ armoredKey: privateKeyArmored })).keys,
+    });
+
+    let offset = 0;
+    let remainingBytes = ContentLength;
+    const writeStream = fs.createWriteStream(outputFile);
+
+    while (remainingBytes > 0) {
+      const chunkSize = Math.min(remainingBytes, chunkSize);
+      const response = await s3.getObject({ ...params, Range: `bytes=${offset}-${offset + chunkSize - 1}` }).promise();
+      const chunk = response.Body;
+
+      // PGP encrypt the chunk and write it to the output file
+      const encryptedChunk = await encrypt({
+        message: await chunk.toString(),
+        publicKeys: (await openpgp.readKey({ armoredKey: publicKeyArmored })).keys,
+        armor: true,
+      });
+      writeStream.write(encryptedChunk);
+
+      offset += chunkSize;
+      remainingBytes -= chunkSize;
+    }
+
+    writeStream.end();
+    console.log('File downloaded and encrypted successfully.');
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+downloadAndEncrypt();
