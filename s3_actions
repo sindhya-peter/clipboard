@@ -52,3 +52,20 @@ AWS.config.update({
   secretAccessKey: 'YOUR_SECRET_ACCESS_KEY',
   region: 'YOUR_REGION', // Specify the AWS region where your S3 bucket is located
 });
+
+slice: (buf, start, end) => buf.base64Slice(start, end),
+                                    ^
+
+Error: Error encrypting message: Cannot create a string longer than 0x1fffffe8 characters
+    at Object.slice (node:buffer:683:37)
+    at Buffer.toString (node:buffer:853:14)
+    at le (/Users/sindhyapeter/Work/AppMastery/samples/node/large-pgp/node_modules/openpgp/dist/node/openpgp.min.js:2:22635)
+    at /Users/sindhyapeter/Work/AppMastery/samples/node/large-pgp/node_modules/openpgp/dist/node/openpgp.min.js:2:21975
+    at X (/Users/sindhyapeter/Work/AppMastery/samples/node/large-pgp/node_modules/openpgp/dist/node/openpgp.min.js:2:7390)
+    at ye (/Users/sindhyapeter/Work/AppMastery/samples/node/large-pgp/node_modules/openpgp/dist/node/openpgp.min.js:2:21891)
+    at Me (/Users/sindhyapeter/Work/AppMastery/samples/node/large-pgp/node_modules/openpgp/dist/node/openpgp.min.js:2:28424)
+    at Ih.armor (/Users/sindhyapeter/Work/AppMastery/samples/node/large-pgp/node_modules/openpgp/dist/node/openpgp.min.js:2:351542)
+    at exports.encrypt (/Users/sindhyapeter/Work/AppMastery/samples/node/large-pgp/node_modules/openpgp/dist/node/openpgp.min.js:16:135307)
+    at async runFunc (/Users/sindhyapeter/Work/AppMastery/samples/node/large-pgp/index.js:183:27) {
+  code: 'ERR_STRING_TOO_LONG'
+}
