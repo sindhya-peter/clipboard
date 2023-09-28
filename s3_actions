@@ -53,11 +53,3 @@ AWS.config.update({
   region: 'YOUR_REGION', // Specify the AWS region where your S3 bucket is located
 });
 
-slice: (buf, start, end) => buf.base64Slice(start, end),
-                                    ^
-
-Error: Error encrypting message: Cannot create a string longer than 0x1fffffe8 characters
-    at Object.slice (node:buffer:683:37)
-    at Buffer.toString (node:buffer:853:14)
-  code: 'ERR_STRING_TOO_LONG'
-}
