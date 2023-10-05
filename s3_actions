@@ -53,3 +53,4 @@ AWS.config.update({
   region: 'YOUR_REGION', // Specify the AWS region where your S3 bucket is located
 });
 
+https://saturncloud.io/blog/how-to-pull-a-pdf-from-amazon-s3-and-render-it-directly-in-the-browser-from-bufferstream/
