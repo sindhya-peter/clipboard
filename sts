@@ -1,0 +1,92 @@
+//const AWS = require('/opt/arn:aws:lambda:us-west-2:429013493380:layer:aws-sdk:1');
+import AWS from 'aws-sdk'
+const sts = new AWS.STS();
+// export const handler = async (event) => {
+//     const response = "hey";
+//     console.log("testing")
+
+//     return response;
+// };
+
+// export const handler = async (event) => {
+//     try {
+//         // Step 1: Assume the cross-account role
+//         const assumeRoleResponse = await sts.assumeRole({
+//             RoleArn: 'arn:aws:iam::429013493380:role/assume-role-test',
+//             RoleSessionName: 'AssumeRoleSession'
+//         }).promise();
+
+//         // Extract temporary credentials
+//         const { AccessKeyId, SecretAccessKey, SessionToken } = assumeRoleResponse.Credentials;
+//         console.log("AccessKeyId ="+AccessKeyId+"\nSecretAccessKey ="+SecretAccessKey);
+//         // Step 2: Perform actions using the assumed role credentials
+//         // You can put your code logic here to perform actions in the cross-account role
+
+//         // Step 3: Switch back to the original role if needed
+//         // const switchBackResponse = await sts.assumeRole({
+//         //     RoleArn: 'arn:aws:iam::429013493380:role/service-role/assumeroleTest-role-i0pwjdn1',
+//         //     RoleSessionName: 'SwitchBackSession',
+//         //     ExternalId: 'OptionalExternalId'
+//         // }).promise();
+
+//         // Extract temporary credentials for your original role
+//         //const { AccessKeyId: originalAccessKeyId, SecretAccessKey: originalSecretAccessKey, SessionToken: originalSessionToken } = switchBackResponse.Credentials;
+
+//         // You can now use these credentials to perform actions in your original role
+
+//         return {
+//             statusCode: 200,
+//             body: 'Successfully assumed and switched back roles.'
+//         };
+//     } catch (error) {
+//         console.error('Error:', error);
+//         return {
+//             statusCode: 500,
+//             body: 'Error occurred while assuming or switching roles.'
+//         };
+//     }
+// };
+
+
+//const AWS = require('aws-sdk');
+
+ export const handler = async (event) => {
+  // Create an STS client to assume the role
+ //const sts = new AWS.STS();
+
+           const assumeRoleResponse = await sts.assumeRole({
+            RoleArn: 'arn:aws:iam::429013493380:role/assume-role-test',
+            RoleSessionName: 'AssumeRoleSession'
+        }).promise();
+
+        // Extract temporary credentials
+
+  try {
+    // Assume the role to get temporary credentials
+        const { AccessKeyId, SecretAccessKey, SessionToken } = assumeRoleResponse.Credentials;
+
+    // Create a Secrets Manager client using the temporary credentials
+    const secretsManager = new AWS.SecretsManager({
+      accessKeyId: assumeRoleResponse.Credentials.AccessKeyId,
+      secretAccessKey: assumeRoleResponse.Credentials.SecretAccessKey,
+      sessionToken: assumeRoleResponse.Credentials.SessionToken,
+    });
+
+    // Use the Secrets Manager client to fetch secrets
+    const secretValue = await secretsManager.getSecretValue({ SecretId: 'test/sec/dev' }).promise();
+    
+    // Your code to process the secret value
+    console.log(secretValue);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify('Secret fetched successfully'),
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify('Error fetching secret'),
+    };
+  }
+};
