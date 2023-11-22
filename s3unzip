@@ -1,0 +1,76 @@
+// // import s3ZipHandler from 's3-zip-handler'
+// // import AWS from 'aws-sdk'
+// const AWS = require('aws-sdk');
+// const zipHandler = require('s3-zip-handler');
+
+// // const s3Client = new AWS.S3({
+// //     ...your s3 settings
+// // })
+// // var s3 = new AWS.S3();
+// // const s3Config = {
+// //     s3,
+// //     bucket: 'mytestmaster',
+// //     key: 'pgp/decryptedFile_2.zip'
+// // } 
+
+// var s3 = new AWS.S3();
+// const s3Config = {
+//     s3,
+//     bucket: 'large-pgp-files',
+//     key: 'Afm Exp.zip'
+// } 
+// // exports.handler = (event, context, callback) => {
+// //     console.log('******* loading..');
+  
+// //     runFunc() 
+// //   };
+// runFunc();
+//   async function runFunc() {
+//     const {localPath, uploadedPath } =  await zipHandler.decompressToKeyFolderS3(s3Config)
+//     console.log(`localPath, uploadedPath ${localPath}, ${uploadedPath }`)
+//   }
+
+
+const aws = require('aws-sdk');
+
+const s3 = new aws.S3();
+
+const unzipper = require("unzipper");
+
+exports.handler = async (event) =>      {
+    const params = {
+    Key: 'pgp/two_gb_decryptedFile.zip',
+    Bucket: 'mytestmaster'
+  };
+
+  const zip = s3
+      .getObject(params)
+      .createReadStream()
+      .pipe(unzipper.Parse({ forceStream: true }));
+
+  const promises = [];
+
+  let num = 0;
+
+  for await (const e of zip) {
+    const entry = e;
+    console.log("entry = "+JSON.stringify(e));
+    const fileName = entry.path;
+    const type = entry.type;
+    if (type === 'File') {
+      const uploadParams = {
+        Bucket: 'mytestmaster',
+        Key: 'pgp/two_gb_decryptedFile/'+fileName,
+        Body: entry,
+      };
+
+      promises.push(s3.upload(uploadParams).promise());
+      num++;
+    } else {
+      entry.autodrain();
+    }
+  }
+
+  await Promise.all(promises);
+
+};
