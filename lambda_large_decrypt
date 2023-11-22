@@ -1,0 +1,273 @@
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3();
+const openpgp = require('openpgp');
+const decryptedFile = '/tmp/decred.zip';
+const encryptedFile = './encrypted.zip.pgp';
+const fs = require('fs');
+const moment = require('moment');
+const unzipper = require("unzipper");
+const path = require("path");
+// const mimes = require("mime-types");
+
+
+//const Stream = require('stream')
+const stream = require('stream');
+exports.handler = (event, context, callback) => {
+    console.log('******* checking files in tmp..');
+
+    fs.readdirSync("/tmp/").forEach(file => {
+        console.log(file);
+    });
+
+    // delete a file asynchronously
+    // fs.unlink(decryptedFile, (err) => {
+    //   if (err) {
+    //     console.error(err);
+    //   } else {
+    //     console.log('File is deleted.');
+    //   }
+    // });
+
+    // Create an STS client to assume the role
+    runFunc();
+};
+
+
+async function runFunc() {
+    // const uploadStream = s3.upload({
+    //     Bucket: 'your-bucket-name',
+    //     Key: 'your-object-key',
+    //   });
+
+
+    const publicKeyArmored = `-----BEGIN PGP PUBLIC KEY BLOCK-----\nVersion: Keybase OpenPGP v1.0.0\nComment: https://keybase.io/crypto\n
+    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
+    WxvCIeb33JCeAUfipYUqbE2TLmOHXw==\n=BkBo\n-----END PGP PUBLIC KEY BLOCK-----`;
+
+    const privateKeyArmored = `-----BEGIN PGP PRIVATE KEY BLOCK-----\nVersion: Keybase OpenPGP v1.0.0\nComment: https://keybase.io/crypto\n
+    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
+    Xw==\n=FqBL\n-----END PGP PRIVATE KEY BLOCK-----`;
+    const passphrase = `123456`;
+    const publicKey = await openpgp.readKey({ armoredKey: publicKeyArmored });
+    const privateKey = await openpgp.decryptKey({
+        privateKey: await openpgp.readPrivateKey({ armoredKey: privateKeyArmored }),
+        passphrase
+    });
+
+    //    // console.log(publicKey); 
+
+    // const params = {
+    //   Bucket: 'mytesttester',
+    //   Key: 'pgp/onegb.zip.pgp',
+    //   //Key:'encrypted.pgp',
+    // };
+    const params = {
+        Bucket: 'mytesttester',
+        Key: 'pgp/onegb.zip.pgp',
+        //Key:'encrypted.pgp',
+    };
+
+    const fileStream = s3.getObject(params).createReadStream();
+    //    const message  = await openpgp.createMessage({ binary: fileStream });
+    //   const encryptedData = await openpgp.decrypt({
+    //     message: message,
+    //     decryptionKeys: privateKey,
+    //     format:'binary',
+    //   });
+    const currentTime = moment().format('YYYY-MM-DD HH:mm:ss');
+    console.log("\n********Start time =" + currentTime + "**********\n");
+    const message = await openpgp.readMessage({
+        binaryMessage: fileStream // parse armored message
+    });
+    const { data: decrypted, signatures } = await openpgp.decrypt({
+        message,
+        format: 'binary',
+        decryptionKeys: privateKey,
+        config: { allowUnauthenticatedStream: true, preferredCompressionAlgorithm: openpgp.enums.compression.zlib }
+    });
+    const newFileStream = fs.createWriteStream(decryptedFile);
+    // decrypted.pipe(newFileStream);
+
+    decrypted.on('data', (chunk) => {
+        //console.log("decrypted.on('data')");
+        newFileStream.write(chunk);
+    });
+    decrypted.on('end', () => {
+        console.log("decrypted.on end");
+        console.log('******* checking files in tmp..');
+
+        fs.readdirSync("/tmp/").forEach(file => {
+            console.log(file);
+        });
+        //newFileStream.write(null);
+        const uploadData = fs.createReadStream(decryptedFile);
+        console.log("uploadData created");
+
+
+
+        var parameters = { Bucket: "mytesttester", Key: 'pgp/onegb.zip', Body: uploadData };
+
+        s3.upload(parameters, function (err, data) {
+            if (err) {
+                console.log(err, data);
+            } else {
+                console.log("data", JSON.stringify(data));
+                fs.unlink(decryptedFile, (err) => {
+                    if (err) {
+                        console.error(err);
+                    } else {
+                        console.log('File is deleted.');
+                    }
+                });
+
+            }
+
+        });
+    });
+
+
+
+
+
+};
+
+
+//runFunc();
