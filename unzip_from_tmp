@@ -1,0 +1,126 @@
+// // import s3ZipHandler from 's3-zip-handler'
+// // import AWS from 'aws-sdk'
+// const AWS = require('aws-sdk');
+// const zipHandler = require('s3-zip-handler');
+
+// // const s3Client = new AWS.S3({
+// //     ...your s3 settings
+// // })
+// // var s3 = new AWS.S3();
+// // const s3Config = {
+// //     s3,
+// //     bucket: 'mytesttest',
+// //     key: 'pgp/decryptedFile_2.zip'
+// // } 
+
+// var s3 = new AWS.S3();
+// const s3Config = {
+//     s3,
+//     bucket: 'large-pgp-files',
+//     key: 'Afm Exp.zip'
+// } 
+// // exports.handler = (event, context, callback) => {
+// //     console.log('******* loading..');
+
+// //     runFunc() 
+// //   };
+// runFunc();
+//   async function runFunc() {
+//     const {localPath, uploadedPath } =  await zipHandler.decompressToKeyFolderS3(s3Config)
+//     console.log(`localPath, uploadedPath ${localPath}, ${uploadedPath }`)
+//   }
+
+
+const aws = require('aws-sdk');
+const fs = require('fs');
+
+const s3 = new aws.S3();
+
+const unzipper = require("unzipper");
+
+exports.handler = (event) => {
+
+  getFile();
+
+
+};
+async function getFile() {
+  const params = {
+    Key: 'pgp/onegb.zip',
+    Bucket: 'mytesttest'
+  };
+  const temDir = '/tmp/onegb.zip';
+  const tempFile = fs.createWriteStream(temDir);
+  // var tempFileName = path.join('/tmp', 'downloadedimage.png');
+ // var tempFile = fs.createWriteStream(tmpFile);
+
+  var stream = s3.getObject(params).createReadStream();
+
+  stream.on('data', (chunk) => {
+    //console.log("decrypted.on('data')");
+    tempFile.write(chunk);
+  });
+  stream.on('error', (error) => {
+    console.log("decrypted.on('error')");
+  });
+
+  stream.on('end', () => {
+    console.log("decrypted.on end");
+   // unzipFile(temDir);
+   
+  });
+  // const s3Data = await s3.getObject(params).promise();
+
+  // if(s3Data && s3Data.Body){
+  //   console.log("s3Data");
+
+  //   fs.writeFile(temDir, s3Data.Body, (err) => {
+  //     console.log("writeFile");
+
+  //     if(err){
+  //       console.log("writeFile error");
+
+  //       console.log(err.code, "-", err.message);
+
+  //     }else{
+  //       console.log("writeFile success");
+
+  //       unzipFile(temDir)
+  //     }
+
+  //   }); 
+
+  // }
+}
+async function unzipFile(temDir) {
+  console.log("unzipFile");
+
+  const fileStream = fs.createReadStream(temDir);
+
+  const zip = fileStream.pipe(unzipper.Parse({ forceStream: true }));
+
+  const promises = [];
+
+  let num = 0;
+
+  for await (const e of zip) {
+    const entry = e;
+    console.log("entry = " + JSON.stringify(e));
+    const fileName = entry.path;
+    const type = entry.type;
+    if (type === 'File') {
+      const uploadParams = {
+        Bucket: 'mytesttest',
+        Key: 'pgp/onegbUnzip/' + fileName,
+        Body: entry,
+      };
+
+      promises.push(s3.upload(uploadParams).promise());
+      num++;
+    } else {
+      entry.autodrain();
+    }
+  }
+
+  await Promise.all(promises);
+}
